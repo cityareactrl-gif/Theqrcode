@@ -124,32 +124,8 @@
         const canvasContext = canvasElement.getContext('2d');
 
         let qrCodeValue = '';
-        let userLatitude, userLongitude;
-        let isSubmitting = false;
         let videoStream;
-
-        // Function to get current GPS location
-        const getGeolocation = () => {
-            return new Promise((resolve, reject) => {
-                if ('geolocation' in navigator) {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            resolve({
-                                latitude: position.coords.latitude,
-                                longitude: position.coords.longitude
-                            });
-                        },
-                        (error) => {
-                            console.error('Geolocation error:', error);
-                            reject('ไม่สามารถระบุตำแหน่ง GPS ได้');
-                        }
-                    );
-                } else {
-                    reject('เบราว์เซอร์ไม่รองรับ Geolocation');
-                }
-            });
-        };
-
+        
         const displayMessage = (message, type = 'success') => {
             statusMessage.textContent = message;
             statusMessage.classList.remove('hidden', 'bg-red-200', 'text-red-800', 'bg-green-200', 'text-green-800');
@@ -222,36 +198,45 @@
 
         reportForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (isSubmitting) return;
+            
+            // Validate required fields
+            const id = document.getElementById('id-input').value;
+            const report = document.getElementById('report-input').value;
+            const imageFile = document.getElementById('image-input').files[0];
+            
+            if (!id || !report || !imageFile) {
+                displayMessage('กรุณากรอกข้อมูลและเลือกรูปภาพให้ครบถ้วน', 'error');
+                return;
+            }
 
+            if (!qrCodeValue) {
+                displayMessage('กรุณาสแกน QR Code ก่อน', 'error');
+                return;
+            }
+
+            if (isSubmitting) return;
             isSubmitting = true;
             submitButton.textContent = 'กำลังส่ง...';
             submitButton.disabled = true;
 
-            const id = document.getElementById('id-input').value;
-            const report = document.getElementById('report-input').value;
-            const imageFile = document.getElementById('image-input').files[0];
-
-            if (!imageFile) {
-                displayMessage('กรุณาเลือกรูปภาพ', 'error');
-                isSubmitting = false;
-                submitButton.textContent = 'ส่งข้อมูล';
-                submitButton.disabled = false;
-                return;
-            }
-
             try {
-                // Get geolocation
-                const coords = await getGeolocation();
-                userLatitude = coords.latitude;
-                userLongitude = coords.longitude;
-
-                // Create FormData to send all data including file
+                // Get geolocation before sending
+                const coords = await new Promise((resolve, reject) => {
+                    if ('geolocation' in navigator) {
+                        navigator.geolocation.getCurrentPosition(
+                            (position) => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+                            (error) => reject('ไม่สามารถระบุตำแหน่ง GPS ได้')
+                        );
+                    } else {
+                        reject('เบราว์เซอร์ไม่รองรับ Geolocation');
+                    }
+                });
+                
                 const formData = new FormData();
                 formData.append('id', id);
                 formData.append('qrcodeValue', qrCodeValue);
-                formData.append('latitude', userLatitude);
-                formData.append('longitude', userLongitude);
+                formData.append('latitude', coords.latitude);
+                formData.append('longitude', coords.longitude);
                 formData.append('report', report);
                 formData.append('image', imageFile);
 
@@ -268,14 +253,12 @@
                     reportForm.classList.add('hidden');
                     initialMessage.classList.remove('hidden');
                     qrCodeValue = '';
-                    userLatitude = null;
-                    userLongitude = null;
                 } else {
                     displayMessage(`เกิดข้อผิดพลาด: ${result.message}`, 'error');
                 }
             } catch (error) {
                 console.error('Error during submission:', error);
-                displayMessage('เกิดข้อผิดพลาดในการส่งข้อมูล', 'error');
+                displayMessage(`เกิดข้อผิดพลาดในการส่งข้อมูล: ${error}`, 'error');
             } finally {
                 isSubmitting = false;
                 submitButton.textContent = 'ส่งข้อมูล';
