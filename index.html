@@ -123,7 +123,6 @@
         const canvasElement = document.getElementById('qr-canvas');
         const canvasContext = canvasElement.getContext('2d');
         
-        // ประกาศตัวแปร isSubmitting เพื่อแก้ไขปัญหาปุ่มไม่ทำงาน
         let isSubmitting = false;
 
         let qrCodeValue = '';
@@ -202,7 +201,6 @@
         reportForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Validate required fields
             const id = document.getElementById('id-input').value;
             const report = document.getElementById('report-input').value;
             const imageFile = document.getElementById('image-input').files[0];
@@ -223,16 +221,26 @@
             submitButton.disabled = true;
 
             try {
-                // Get geolocation before sending
                 const coords = await new Promise((resolve, reject) => {
-                    if ('geolocation' in navigator) {
-                        navigator.geolocation.getCurrentPosition(
-                            (position) => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
-                            (error) => reject('ไม่สามารถระบุตำแหน่ง GPS ได้')
-                        );
-                    } else {
+                    if (!('geolocation' in navigator)) {
                         reject('เบราว์เซอร์ไม่รองรับ Geolocation');
+                        return;
                     }
+                    
+                    const timeoutId = setTimeout(() => {
+                        reject('ไม่สามารถระบุตำแหน่ง GPS ได้ (หมดเวลา)');
+                    }, 5000); // 5-second timeout
+
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            clearTimeout(timeoutId);
+                            resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+                        },
+                        (error) => {
+                            clearTimeout(timeoutId);
+                            reject(`ไม่สามารถระบุตำแหน่ง GPS ได้ (${error.message})`);
+                        }
+                    );
                 });
                 
                 const formData = new FormData();
