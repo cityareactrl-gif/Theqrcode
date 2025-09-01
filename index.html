@@ -122,6 +122,9 @@
         const submitButton = document.getElementById('submit-button');
         const canvasElement = document.getElementById('qr-canvas');
         const canvasContext = canvasElement.getContext('2d');
+        
+        // ประกาศตัวแปร isSubmitting เพื่อแก้ไขปัญหาปุ่มไม่ทำงาน
+        let isSubmitting = false;
 
         let qrCodeValue = '';
         let videoStream;
